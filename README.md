@@ -45,6 +45,8 @@ El modelo se eligió por validación temporal **dentro del entrenamiento**, no m
 
 ## El informe en Power BI
 
+📄 [Abrir el informe completo en PDF](informe/informe_power_bi.pdf)
+
 Cuatro páginas con navegación, segmentadores y tema oscuro propio. Guía de construcción en `powerbi/guia_powerbi.md`, medidas en `powerbi/medidas.dax` y diseño en `powerbi/diseno/`.
 
 **1. Resumen:** indicadores del modelo elegido frente a la línea base en la temporada de prueba (1.008 partidos evaluados, 564 predicciones correctas).
@@ -70,7 +72,7 @@ Cuatro páginas con navegación, segmentadores y tema oscuro propio. Guía de co
 ```text
 src/          Limpieza, variables, modelo, gráficas, verificación y exportación (comentado en español)
 graficas/     Ocho figuras: calibración, ROC, matrices de confusión, importancia de variables, Over por liga y equipo
-informe/      Reporte consolidado, borrador académico y capturas del informe de Power BI
+informe/      Informe de Power BI en PDF, reporte consolidado, borrador académico y capturas
 powerbi/      Guía, medidas DAX, visual en Python y diseño
 resultados/   Métricas por modelo e importancia de variables
 ```
