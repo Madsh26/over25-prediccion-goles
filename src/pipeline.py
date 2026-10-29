@@ -1,13 +1,13 @@
-"""Orquesta extracción, limpieza y features; nunca inicia el entrenamiento."""
+"""Informe consolidado de fases (la extracción de datos no se publica)."""
 import asyncio
 import json
 import logging
 import re
 from pathlib import Path
 from config import RAIZ,RAW,LIGAS,TEMPORADAS,TEMPORADA_FIXTURES,MAX_FILAS
-from extraccion import EVIDENCIA,leer,estado,inventariar,validar_basicos,cobertura,ahora
+from extraccion import EVIDENCIA,leer,estado,validar_basicos,cobertura,ahora
 
-LOG=logging.getLogger('flashscore')
+LOG=logging.getLogger('over25')
 
 
 def baselines():
@@ -111,52 +111,6 @@ def informe(motivo=None):
     informe_path.write_text('\n'.join(lineas)+'\n',encoding='utf-8')
 
 
-def main():
-    from playwright.sync_api import sync_playwright
-    from fichas import ejecutar
-    for carpeta in (RAW,EVIDENCIA,RAIZ/'informe'):
-        carpeta.mkdir(parents=True,exist_ok=True)
-    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s',
-     handlers=[logging.FileHandler(RAIZ/'informe/scraping.log',encoding='utf-8'),logging.StreamHandler()])
-    LOG.info('INICIO: fixtures exentos; máximo histórico %s; tres workers; reanudación',MAX_FILAS)
-    try:
-        with sync_playwright() as p:
-            browser=p.chromium.launch(channel='msedge',headless=True)
-            context=browser.new_context(locale='en-GB',timezone_id='America/Bogota')
-            def ruta(route):
-                from urllib.parse import urlsplit
-                from fichas import AD_DOMAINS
-                req=route.request; host=urlsplit(req.url).hostname or ''
-                if req.resource_type in ('image','font','media') or any(host==d or host.endswith('.'+d) for d in AD_DOMAINS):
-                    route.abort()
-                else:
-                    route.continue_()
-            context.route('**/*',ruta)
-            page=context.new_page()
-            try:
-                for liga in LIGAS:
-                    for periodo in TEMPORADAS:
-                        inventariar(page,liga,periodo)
-                for liga in LIGAS:
-                    inventariar(page,liga,TEMPORADA_FIXTURES,fixtures=True)
-            finally:
-                browser.close()
-        incidencias=asyncio.run(ejecutar())
-        LOG.info('Fichas completas; reducciones de ritmo: %s',len(incidencias))
-        estado(fase='scraping_completo')
-        import limpieza,features,verificar
-        limpieza.main()
-        features.main()
-        verificar.main()
-        baselines()
-        estado(fase='fase3_completa',entrenamiento='pendiente_revision')
-        informe()
-        LOG.info('FASE 3 COMPLETA; pendiente revisión, sin entrenamiento')
-    except Exception as exc:
-        estado(fase='detenido',motivo=str(exc))
-        LOG.error('DETENIDO: %s',str(exc)[:700])
-        informe(str(exc))
-        raise
 
 
 if __name__=='__main__':
