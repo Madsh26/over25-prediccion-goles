@@ -14,6 +14,8 @@
 
 **Over** = tres o más goles. **Under** = dos o menos.
 
+![Resumen del informe en Power BI](informe/capturas/pagina-1-resumen.jpg)
+
 ## Por qué existe este proyecto
 
 El mercado de goles totales es un laboratorio limpio para practicar evaluación honesta de modelos: la etiqueta es binaria, el resultado se conoce pronto y es muy fácil engañarse con una validación mal hecha. Quise construir el flujo completo cuidando lo que más se descuida: usar solo información anterior a cada partido, separar entrenamiento y prueba por tiempo, y medir calibración y pérdida logarítmica, no solo aciertos.
@@ -30,25 +32,32 @@ El mercado de goles totales es un laboratorio limpio para practicar evaluación 
 
 ## Resultados
 
-| Modelo | AUC (prueba) | Pérdida logarítmica | Exactitud |
+| Modelo | Exactitud | AUC | Pérdida logarítmica |
 |---|---:|---:|---:|
-| Línea base por liga | 0,5252 | 0,6835 | 56,15 % |
-| **Random Forest (elegido por validación)** | **0,5728** | **0,6764** | 55,95 % |
+| Línea base por liga | 56,15 % | 0,5252 | 0,6835 |
+| **Random Forest (elegido por validación)** | 55,95 % | 0,5728 | **0,6764** |
+| Regresión logística | **57,64 %** | 0,5675 | 0,6786 |
+| XGBoost | 55,65 % | **0,5739** | 0,6773 |
 
-**Lectura honesta:** el modelo ordena mejor los partidos y mejora la probabilidad estimada, pero no acierta más que la línea base con un umbral fijo de 0,5. En un problema donde el azar pesa tanto, eso es lo esperable, y saber decirlo es parte del método. Todo está en `resultados/metricas_modelos.csv` (por liga y modelo) y las figuras en `graficas/`.
+El modelo se eligió por validación temporal **dentro del entrenamiento**, no mirando la prueba. En la prueba, XGBoost tiene el AUC más alto y la regresión logística la mayor exactitud, pero las diferencias son pequeñas y ningún modelo supera con claridad a los demás. Evaluar así evita escoger el "ganador" después de ver el examen.
+
+**Lectura honesta:** el modelo elegido ordena mejor los partidos y mejora la probabilidad estimada, pero no acierta más que la línea base con un umbral fijo de 0,5. En un problema donde el azar pesa tanto, eso es lo esperable, y saber decirlo es parte del método. Todo está en `resultados/metricas_modelos.csv` (por liga y modelo) y las figuras en `graficas/`.
 
 ## El informe en Power BI
 
-Cuatro páginas con navegación, segmentadores y tema propio:
+Cuatro páginas con navegación, segmentadores y tema oscuro propio. Guía de construcción en `powerbi/guia_powerbi.md`, medidas en `powerbi/medidas.dax` y diseño en `powerbi/diseno/`.
 
-| Página | Qué responde |
-|---|---|
-| Resumen | Indicadores generales del modelo y de la muestra |
-| Comparación de modelos | Qué modelo gana y con qué métricas, con calibración en un visual de Python |
-| Análisis por liga y equipo | Dónde se dan más partidos Over y qué equipos los generan |
-| Próximos partidos | Pronóstico de 51 de los 70 partidos de las próximas jornadas (19 quedan sin predicción por historial insuficiente) |
+**1. Resumen:** indicadores del modelo elegido frente a la línea base en la temporada de prueba (1.008 partidos evaluados, 564 predicciones correctas).
+![Resumen](informe/capturas/pagina-1-resumen.jpg)
 
-Guía de construcción en `powerbi/guia_powerbi.md`, medidas en `powerbi/medidas.dax` y diseño en `powerbi/diseno/`.
+**2. Comparación de modelos:** métricas de los cuatro modelos, matriz de confusión, pérdida logarítmica y curva de calibración, filtrables por liga.
+![Comparación de modelos](informe/capturas/pagina-2-comparacion-de-modelos.jpg)
+
+**3. Análisis por liga y equipo:** rendimiento del modelo por liga y equipo, y porcentaje de partidos Over por equipo.
+![Análisis por liga y equipo](informe/capturas/pagina-3-liga-y-equipo.jpg)
+
+**4. Próximos partidos:** probabilidad de Over 2,5 de 51 de los 70 partidos de las próximas jornadas. Los 19 restantes quedan sin pronóstico por historial insuficiente.
+![Próximos partidos](informe/capturas/pagina-4-proximos-partidos.jpg)
 
 ## Datos y extracción
 
@@ -61,7 +70,7 @@ Guía de construcción en `powerbi/guia_powerbi.md`, medidas en `powerbi/medidas
 ```text
 src/          Limpieza, variables, modelo, gráficas, verificación y exportación (comentado en español)
 graficas/     Ocho figuras: calibración, ROC, matrices de confusión, importancia de variables, Over por liga y equipo
-informe/      Reporte consolidado y borrador académico
+informe/      Reporte consolidado, borrador académico y capturas del informe de Power BI
 powerbi/      Guía, medidas DAX, visual en Python y diseño
 resultados/   Métricas por modelo e importancia de variables
 ```
