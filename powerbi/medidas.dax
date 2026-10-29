@@ -1,0 +1,141 @@
+// Crear CADA medida por separado con Modelado > Nueva medida.
+// Separador DAX: coma. Si Desktop exige punto y coma, sustituir los separadores.
+// Formato porcentaje: Exactitud, proporciones, diferencias y probabilidades.
+// Las diferencias de proporciones son puntos porcentuales al mostrar como %.
+
+Partidos evaluados =
+IF(
+    HASONEVALUE(dim_modelo[id_modelo]),
+    COUNTROWS(partidos_predicciones)
+)
+
+Aciertos =
+IF(
+    HASONEVALUE(dim_modelo[id_modelo]),
+    SUM(partidos_predicciones[acierto])
+)
+
+Fallos =
+IF(NOT ISBLANK([Partidos evaluados]), [Partidos evaluados] - [Aciertos])
+
+Exactitud =
+DIVIDE([Aciertos], [Partidos evaluados])
+
+Porcentaje Over =
+IF(
+    HASONEVALUE(dim_modelo[id_modelo]),
+    DIVIDE(SUM(partidos_predicciones[resultado_over25]), [Partidos evaluados])
+)
+
+Probabilidad media =
+IF(
+    HASONEVALUE(dim_modelo[id_modelo]),
+    AVERAGE(partidos_predicciones[probabilidad_over25])
+)
+
+Log loss =
+IF(
+    HASONEVALUE(dim_modelo[id_modelo]),
+    AVERAGE(partidos_predicciones[perdida_logaritmica_partido])
+)
+
+Exactitud linea base =
+CALCULATE(
+    [Exactitud],
+    REMOVEFILTERS(dim_modelo),
+    dim_modelo[id_modelo] = 0
+)
+
+Log loss linea base =
+CALCULATE(
+    [Log loss],
+    REMOVEFILTERS(dim_modelo),
+    dim_modelo[id_modelo] = 0
+)
+
+Diferencia exactitud base =
+IF(NOT ISBLANK([Exactitud]), [Exactitud] - [Exactitud linea base])
+
+Mejora log loss base =
+IF(NOT ISBLANK([Log loss]), [Log loss linea base] - [Log loss])
+
+// AUC no es aditiva. Solo se publica el AUC calculado en Python para la
+// temporada completa de prueba: Todas o UNA liga. Dos ligas, equipos,
+// jornadas o partidos filtrados devuelven BLANK, no un promedio incorrecto.
+ROC AUC =
+VAR LigasReales = FILTER(VALUES(dim_liga[id_liga]), dim_liga[id_liga] > 0)
+VAR NumeroLigas = COUNTROWS(LigasReales)
+VAR LigaMetrica = IF(NumeroLigas = 3, 0, IF(NumeroLigas = 1, MAXX(LigasReales, dim_liga[id_liga])))
+VAR IncluyePrueba = CONTAINS(VALUES(dim_temporada[id_temporada]), dim_temporada[id_temporada], 3)
+VAR FiltroDetalle = ISCROSSFILTERED(dim_equipo) || ISFILTERED(dim_partido) || ISFILTERED(partidos_predicciones)
+RETURN
+IF(
+    HASONEVALUE(dim_modelo[id_modelo]) && IncluyePrueba && NOT FiltroDetalle && NOT ISBLANK(LigaMetrica),
+    CALCULATE(
+        SELECTEDVALUE(metricas_modelos[roc_auc]),
+        REMOVEFILTERS(dim_liga),
+        metricas_modelos[id_liga] = LigaMetrica
+    )
+)
+
+ROC AUC linea base =
+CALCULATE([ROC AUC], REMOVEFILTERS(dim_modelo), dim_modelo[id_modelo] = 0)
+
+Diferencia ROC AUC base =
+IF(NOT ISBLANK([ROC AUC]), [ROC AUC] - [ROC AUC linea base])
+
+TN =
+CALCULATE([Partidos evaluados], KEEPFILTERS(partidos_predicciones[resultado_over25] = 0), KEEPFILTERS(partidos_predicciones[clase_predicha] = 0))
+
+FP =
+CALCULATE([Partidos evaluados], KEEPFILTERS(partidos_predicciones[resultado_over25] = 0), KEEPFILTERS(partidos_predicciones[clase_predicha] = 1))
+
+FN =
+CALCULATE([Partidos evaluados], KEEPFILTERS(partidos_predicciones[resultado_over25] = 1), KEEPFILTERS(partidos_predicciones[clase_predicha] = 0))
+
+TP =
+CALCULATE([Partidos evaluados], KEEPFILTERS(partidos_predicciones[resultado_over25] = 1), KEEPFILTERS(partidos_predicciones[clase_predicha] = 1))
+
+Precision Over =
+IF(NOT ISBLANK([Partidos evaluados]), DIVIDE([TP], [TP] + [FP], 0))
+
+Sensibilidad Over =
+IF(NOT ISBLANK([Partidos evaluados]), DIVIDE([TP], [TP] + [FN], 0))
+
+F1 Over =
+IF(NOT ISBLANK([Partidos evaluados]), DIVIDE(2 * [Precision Over] * [Sensibilidad Over], [Precision Over] + [Sensibilidad Over], 0))
+
+// equipos_resumen cuenta participaciones equipo-partido: un partido aparece
+// dos veces si se suman todos sus equipos. No rotular esa suma como partidos únicos.
+Participaciones historicas =
+SUM(equipos_resumen[partidos])
+
+Porcentaje Over historico =
+DIVIDE(SUM(equipos_resumen[partidos_over25]), [Participaciones historicas])
+
+Goles favor promedio =
+DIVIDE(SUM(equipos_resumen[goles_favor]), [Participaciones historicas])
+
+Goles contra promedio =
+DIVIDE(SUM(equipos_resumen[goles_contra]), [Participaciones historicas])
+
+Goles totales promedio =
+DIVIDE(SUM(equipos_resumen[goles_favor]) + SUM(equipos_resumen[goles_contra]), [Participaciones historicas])
+
+Fixtures visibles =
+COUNTROWS(proximos_partidos)
+
+Fixtures con prediccion =
+CALCULATE(COUNTROWS(proximos_partidos), proximos_partidos[historial_suficiente] = 1)
+
+Fixtures sin prediccion =
+CALCULATE(COUNTROWS(proximos_partidos), proximos_partidos[historial_suficiente] = 0)
+
+Probabilidad media proximos =
+AVERAGE(proximos_partidos[probabilidad_over25])
+
+// Campo de formato condicional: Formatear por valor de campo. Un vacío es
+// gris, nunca se representa como 0%.
+Color probabilidad proximos =
+VAR P = SELECTEDVALUE(proximos_partidos[probabilidad_over25])
+RETURN IF(ISBLANK(P), "#B8BEC5", IF(P >= 0.60, "#319C87", IF(P >= 0.50, "#C4A04A", "#779BC3")))

@@ -1,0 +1,10 @@
+# Dependencias comprobadas con Python 3.14.3 (extracción y fases 4/5).
+playwright==1.64.0
+numpy==2.5.4
+pandas==3.0.6
+scikit-learn==1.9.1
+xgboost==3.4.1
+matplotlib==3.11.2
+seaborn==0.13.2
+joblib==1.6.0
+jsonschema==4.26.0
